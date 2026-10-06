@@ -12,6 +12,7 @@ import '../services/expense_service.dart';
 import '../screens/expense_screen.dart';
 import '../services/auth_service.dart';
 import 'package:intl/intl.dart';
+import 'workfile_wizard_screen.dart';
 
 class WorkfileDetailsDialog extends StatefulWidget {
   final Map<String, dynamic> workfile;
@@ -251,6 +252,27 @@ class _WorkfileDetailsDialogState extends State<WorkfileDetailsDialog> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_rounded, color: AppTheme.primaryColor),
+                            tooltip: 'Edit Case',
+                            onPressed: () {
+                              Navigator.pop(context);
+                              showDialog(
+                                context: context,
+                                builder: (context) => Dialog(
+                                  backgroundColor: Colors.transparent,
+                                  insetPadding: const EdgeInsets.all(24),
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 800),
+                                    child: WorkfileWizardScreen(existingWorkfile: widget.workfile),
+                                  ),
+                                ),
+                              );
+                            },
+                            style: IconButton.styleFrom(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
                           if (RoleService.canDeleteCases(_currentUserRole))
                             IconButton(
                               icon: const Icon(Icons.delete_outline, color: AppTheme.errorRed),

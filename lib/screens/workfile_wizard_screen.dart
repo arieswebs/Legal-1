@@ -10,10 +10,12 @@ import '../services/vault_service.dart';
 import '../models/deal.dart';
 import '../services/deal_service.dart';
 import '../services/auth_service.dart';
+import '../services/user_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class WorkfileWizardScreen extends StatefulWidget {
-  const WorkfileWizardScreen({super.key});
+  final Map<String, dynamic>? existingWorkfile;
+  const WorkfileWizardScreen({super.key, this.existingWorkfile});
 
   @override
   State<WorkfileWizardScreen> createState() => _WorkfileWizardScreenState();
@@ -23,6 +25,9 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
   bool _isLoading = false;
 
   final _fileNoController = TextEditingController();
+  final _courtCaseNumberController = TextEditingController();
+  final _stageController = TextEditingController();
+  String _caseExistenceStatus = 'Non-Existing';
   final _caseNameController = TextEditingController();
   final _caseTypeController = TextEditingController(text: 'Civil');
   final _customCaseTypeController = TextEditingController();
@@ -42,23 +47,98 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
   bool _isLoadingVaultFiles = false;
 
   final List<String> _selectedStaffEmails = [];
+  final _careOfController = TextEditingController();
+  List<Map<String, dynamic>> _allStaff = [];
 
   @override
   void initState() {
     super.initState();
     _loadClients();
     _loadStaff();
+    if (widget.existingWorkfile != null) {
+      _prepopulateFields();
+    }
+  }
+
+  void _prepopulateFields() {
+    final wf = widget.existingWorkfile!;
+    String workfileNo = '';
+    String year = '';
+    String court = '';
+    String clientStatus = '';
+    
+    if (wf['case_description'] != null) {
+      try {
+        final map = jsonDecode(wf['case_description']);
+        workfileNo = map['workfile_no']?.toString() ?? '';
+        year = map['year']?.toString() ?? map['case_year']?.toString() ?? '';
+        court = map['court']?.toString() ?? map['court_name']?.toString() ?? '';
+        clientStatus = map['client_status']?.toString() ?? '';
+      } catch (_) {}
+    }
+    
+    final courtCaseNum = wf['court_case_number']?.toString() ?? '';
+    final dbCaseNumber = wf['case_number']?.toString() ?? '';
+    
+    final fileNo = workfileNo.isNotEmpty ? workfileNo : dbCaseNumber;
+    _fileNoController.text = fileNo.isNotEmpty ? fileNo : (courtCaseNum.isNotEmpty ? courtCaseNum : '');
+    
+    if (courtCaseNum.isNotEmpty && courtCaseNum != _fileNoController.text) {
+      _caseExistenceStatus = 'Existing';
+      _courtCaseNumberController.text = courtCaseNum;
+    } else {
+      _caseExistenceStatus = 'Non-Existing';
+    }
+    
+    _caseNameController.text = wf['case_title']?.toString() ?? wf['title']?.toString() ?? '';
+    _caseTypeController.text = wf['case_type']?.toString() ?? 'Civil';
+    _stageController.text = wf['current_stage']?.toString() ?? '';
+    _yearController.text = year.isNotEmpty ? year : (wf['year']?.toString() ?? wf['case_year']?.toString() ?? DateTime.now().year.toString());
+    _courtController.text = court.isNotEmpty ? court : (wf['court_details']?.toString() ?? wf['court_name']?.toString() ?? wf['court']?.toString() ?? '');
+    
+    final status = clientStatus.isNotEmpty ? clientStatus : (wf['client_status']?.toString() ?? 'Active');
+    _clientStatusController.text = status;
+    if (['Active', 'Pending', 'In Consultation', 'Retained', 'Notice Issued', 'Disposed', 'Closed'].contains(status)) {
+      _selectedClientStatus = status;
+    } else {
+      _selectedClientStatus = 'Other';
+    }
+    
+    if (['Civil', 'Criminal', 'Corporate', 'Family', 'Property', 'Tax', 'Constitutional'].contains(_caseTypeController.text)) {
+      _selectedCaseTypeDropdown = _caseTypeController.text;
+    } else {
+      _selectedCaseTypeDropdown = 'Other';
+      _customCaseTypeController.text = _caseTypeController.text;
+    }
+
+    if (wf['responsible_staff'] != null) {
+      var staffData = wf['responsible_staff'];
+      if (staffData is List) {
+        final staffList = staffData.map((e) => e.toString()).toList();
+        _selectedStaffEmails.addAll(staffList);
+      } else if (staffData is String && staffData.isNotEmpty) {
+        final staffList = staffData.split(',').map((e) => e.trim().replaceAll('[', '').replaceAll(']', '')).where((e) => e.isNotEmpty).toList();
+        _selectedStaffEmails.addAll(staffList);
+      }
+    }
+    
+    if (wf['assigned_counsel'] != null) {
+      _careOfController.text = wf['assigned_counsel']?.toString() ?? '';
+    }
   }
 
   @override
   void dispose() {
     _fileNoController.dispose();
+    _courtCaseNumberController.dispose();
+    _stageController.dispose();
     _caseNameController.dispose();
     _caseTypeController.dispose();
     _customCaseTypeController.dispose();
     _yearController.dispose();
     _courtController.dispose();
     _clientStatusController.dispose();
+    _careOfController.dispose();
     super.dispose();
   }
 
@@ -69,12 +149,19 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
       final prefs = await SharedPreferences.getInstance();
       final email = prefs.getString('user_email') ?? '';
       final name = DisplayNameHelper.overrideName(prefs.getString('user_name') ?? '');
+      
+      final users = await UserService.getAllUsers();
+      
       if (mounted) {
         setState(() {
+          _allStaff = users;
           _loggedInStaffName = name.isNotEmpty ? name : email;
-          _selectedStaffEmails.clear();
-          if (email.isNotEmpty) {
-            _selectedStaffEmails.add(email);
+          
+          if (widget.existingWorkfile == null) {
+            _selectedStaffEmails.clear();
+            if (email.isNotEmpty) {
+              _selectedStaffEmails.add(email);
+            }
           }
         });
       }
@@ -90,6 +177,29 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
         setState(() {
           _clients = clients;
           _isLoadingClients = false;
+          
+          if (widget.existingWorkfile != null) {
+            final wf = widget.existingWorkfile!;
+            String? targetClientEmail;
+            String? targetClientName = wf['client_name']?.toString();
+            
+            if (wf['case_description'] != null) {
+              try {
+                final map = jsonDecode(wf['case_description'].toString());
+                targetClientEmail = map['client_email']?.toString();
+              } catch (_) {}
+            }
+            
+            try {
+              if (targetClientEmail != null && targetClientEmail.isNotEmpty) {
+                _selectedClient = _clients.firstWhere((c) => c['email'] == targetClientEmail);
+              } else if (targetClientName != null && targetClientName.isNotEmpty) {
+                _selectedClient = _clients.firstWhere((c) => c['name'] == targetClientName);
+              }
+            } catch (_) {
+              // Client not found in roster
+            }
+          }
         });
       }
     } catch (e) {
@@ -168,6 +278,10 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
       }
 
       final caseIdStr = _fileNoController.text.trim();
+      final actualCourtCaseNum = _caseExistenceStatus == 'Existing' && _courtCaseNumberController.text.trim().isNotEmpty 
+          ? _courtCaseNumberController.text.trim() 
+          : caseIdStr;
+          
       final creatorName = await AuthService().getUserName();
       final yearStr = _yearController.text.trim().isEmpty ? DateTime.now().year.toString() : _yearController.text.trim();
       final courtStr = _courtController.text.trim();
@@ -176,15 +290,18 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
           : _selectedClientStatus;
 
       final caseData = {
+        'case_number': caseIdStr,
         'case_title': _caseNameController.text.trim(),
         'client_name': _selectedClient!['name'] ?? '',
         'case_type': _caseTypeController.text.trim().isEmpty ? 'General' : _caseTypeController.text.trim(),
         'case_status': 'Open',
         'status': 'Open',
-        'court_case_number': caseIdStr,
+        'current_stage': _caseExistenceStatus == 'Existing' ? _stageController.text.trim() : 'Registration',
+        'court_case_number': actualCourtCaseNum,
         'court_details': courtStr,
         'court_name': courtStr,
         'court': courtStr,
+        'assigned_counsel': _careOfController.text.trim(),
         'responsible_staff': _selectedStaffEmails,
         'created_by': (creatorName != null && creatorName.isNotEmpty) ? creatorName : 'System',
         'year': yearStr,
@@ -201,23 +318,32 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
         }),
       };
 
-      await CaseService.addCase(caseData);
-
-      try {
-        final deal = Deal(
-          name: _caseNameController.text.trim(),
-          clientId: _selectedClient!['id'],
-          clientName: _selectedClient!['name'],
-          stage: Deal.stages.first,
-          pipeline: 'Case Management',
-          description: 'Created from Workfile Manager',
-        );
-        await DealService().createDeal(deal);
-      } catch (dealError) {
-        debugPrint('Error creating deal for workfile: $dealError');
+      if (widget.existingWorkfile != null) {
+        final id = widget.existingWorkfile!['id']?.toString() ?? widget.existingWorkfile!['case_id']?.toString() ?? '';
+        if (id.isNotEmpty) {
+          await CaseService.updateCase(id, caseData);
+          _msg('Workfile successfully updated!', true);
+        } else {
+          await CaseService.addCase(caseData);
+          _msg('Workfile successfully created!', true);
+        }
+      } else {
+        await CaseService.addCase(caseData);
+        try {
+          final deal = Deal(
+            name: _caseNameController.text.trim(),
+            clientId: _selectedClient!['id'],
+            clientName: _selectedClient!['name'],
+            stage: Deal.stages.first,
+            pipeline: 'Case Management',
+            description: 'Created from Workfile Manager',
+          );
+          await DealService().createDeal(deal);
+        } catch (dealError) {
+          debugPrint('Error creating deal for workfile: $dealError');
+        }
+        _msg('Workfile successfully created!', true);
       }
-
-      _msg('Workfile successfully created!', true);
       
       if (mounted) {
         Navigator.of(context).pop();
@@ -317,10 +443,42 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
                   ),
                   const SizedBox(height: 12),
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _buildDropdownField<String>(
+                          value: _caseExistenceStatus,
+                          label: 'Court Case Status',
+                          icon: Icons.account_balance_wallet_rounded,
+                          items: ['Existing', 'Non-Existing']
+                              .map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _caseExistenceStatus = val;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _caseExistenceStatus == 'Existing' 
+                          ? _buildFormField(_courtCaseNumberController, 'Court Case Number', Icons.gavel_rounded, hint: 'e.g. OP(FC) 123/2026')
+                          : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                  if (_caseExistenceStatus == 'Existing') ...[
+                    const SizedBox(height: 14),
+                    _buildFormField(_stageController, 'Current Stage of Case', Icons.stairs_rounded, hint: 'e.g. Hearing, Evidence, Final Arguments...'),
+                  ],
+                  const SizedBox(height: 14),
+                  Row(
                     children: [
                       Expanded(
                         flex: 2,
-                        child: _buildFormField(_fileNoController, 'File / Case No. *', Icons.tag_rounded, hint: 'e.g. CU-WF-2026-001'),
+                        child: _buildFormField(_fileNoController, 'File No. *', Icons.tag_rounded, hint: 'e.g. DN-26'),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -490,44 +648,113 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // SECTION 3: Staff Assignment (Auto-assigned to logged-in user)
+                  // SECTION 3: Staff Assignment
                   const Text(
                     'ASSIGNED LEGAL TEAM',
                     style: TextStyle(fontFamily: 'Montserrat', fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8), letterSpacing: 0.6),
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                  
+                  // Selected Staff Chips
+                  if (_selectedStaffEmails.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _selectedStaffEmails.map((email) {
+                          final staff = _allStaff.cast<Map<String, dynamic>?>().firstWhere((u) => u?['email'] == email, orElse: () => null);
+                          final displayName = staff != null ? (staff['name'] ?? staff['username'] ?? email) : email;
+                          return Chip(
+                            backgroundColor: const Color(0xFFF1F5F9),
+                            label: Text(
+                              displayName.toString(),
+                              style: const TextStyle(fontFamily: 'Montserrat', fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                            ),
+                            deleteIcon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                            onDeleted: () {
+                              setState(() {
+                                _selectedStaffEmails.remove(email);
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person_rounded, size: 20, color: Color(0xFF0F172A)),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _loggedInStaffName.isNotEmpty 
-                                ? _loggedInStaffName 
-                                : (_selectedStaffEmails.isNotEmpty ? _selectedStaffEmails.first : 'Logged-in Staff'),
-                            style: const TextStyle(fontFamily: 'Montserrat', fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                    
+                  // Dropdowns to Assign Staff
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _careOfController,
+                          decoration: InputDecoration(
+                            labelText: 'Care Of (C/O)',
+                            labelStyle: const TextStyle(color: Color(0xFF64748B), fontFamily: 'Montserrat', fontSize: 12.5),
+                            prefixIcon: const Icon(Icons.person_outline_rounded, color: Color(0xFF64748B), size: 18),
+                            suffixIcon: PopupMenuButton<String>(
+                              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
+                              offset: const Offset(0, 48),
+                              onSelected: (String value) {
+                                setState(() {
+                                  _careOfController.text = value;
+                                });
+                              },
+                              itemBuilder: (BuildContext context) {
+                                return _allStaff.map((staff) {
+                                  final email = staff['email']?.toString() ?? '';
+                                  final name = staff['name']?.toString() ?? staff['username']?.toString() ?? email;
+                                  return PopupMenuItem<String>(
+                                    value: name,
+                                    child: Text(name, style: const TextStyle(fontFamily: 'Montserrat', fontSize: 13, color: Color(0xFF0F172A), fontWeight: FontWeight.w600)),
+                                  );
+                                }).toList();
+                              },
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF0F172A), width: 1.2)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           ),
+                          style: const TextStyle(fontFamily: 'Montserrat', fontSize: 13.5, color: Color(0xFF0F172A), fontWeight: FontWeight.w600),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: null,
+                          decoration: InputDecoration(
+                            labelText: 'Add Handled By',
+                            labelStyle: const TextStyle(color: Color(0xFF64748B), fontFamily: 'Montserrat', fontSize: 12.5),
+                            prefixIcon: const Icon(Icons.gavel_rounded, color: Color(0xFF64748B), size: 18),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF0F172A), width: 1.2)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           ),
-                          child: const Text(
-                            'Logged In Staff',
-                            style: TextStyle(fontFamily: 'Montserrat', fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF047857)),
-                          ),
+                          items: _allStaff.map((staff) {
+                            final email = staff['email']?.toString() ?? '';
+                            final name = staff['name']?.toString() ?? staff['username']?.toString() ?? email;
+                            return DropdownMenuItem<String>(
+                              value: email,
+                              child: Text(name, style: const TextStyle(fontFamily: 'Montserrat', fontSize: 13, color: Color(0xFF0F172A), fontWeight: FontWeight.w600)),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null && !_selectedStaffEmails.contains(val)) {
+                              setState(() {
+                                _selectedStaffEmails.add(val);
+                              });
+                            }
+                          },
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
 
@@ -642,7 +869,7 @@ class _WorkfileWizardScreenState extends State<WorkfileWizardScreen> {
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD4AF37)))
                       : const Icon(Icons.check_rounded, size: 18, color: Color(0xFFD4AF37)),
                   label: Text(
-                    _isLoading ? 'Creating Workfile...' : 'Create Workfile',
+                    _isLoading ? (widget.existingWorkfile != null ? 'Updating...' : 'Creating...') : (widget.existingWorkfile != null ? 'Save Changes' : 'Create Workfile'),
                     style: const TextStyle(fontFamily: 'Montserrat', color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 13),
                   ),
                   style: ElevatedButton.styleFrom(

@@ -354,12 +354,12 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
       child: Container(
         constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 750),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF0F172A), // Premium dark background
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+          border: Border.all(color: const Color(0xFF334155), width: 1.2), // Darker border
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
+              color: Colors.black.withValues(alpha: 0.4),
               blurRadius: 36,
               offset: const Offset(0, 16),
             ),
@@ -372,7 +372,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
               // Sidebar Navigation
               Container(
                 width: 260,
-                color: const Color(0xFFF8FAFC),
+                color: const Color(0xFF1E293B), // Lighter slate for sidebar
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -399,7 +399,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                                   style: GoogleFonts.cormorantGaramond(
                                     fontSize: 20,
                                     fontWeight: FontWeight.bold,
-                                    color: const Color(0xFF0F172A),
+                                    color: const Color(0xFFD4AF37), // Gold header
                                     letterSpacing: 0.8,
                                   ),
                                 ),
@@ -411,7 +411,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                             widget.client.name ?? 'Client Files',
                             style: const TextStyle(
                               fontFamily: 'Montserrat',
-                              color: Color(0xFF64748B),
+                              color: Color(0xFF94A3B8), // Lighter subtitle
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -419,7 +419,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                         ],
                       ),
                     ),
-                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 1, color: Color(0xFF334155)),
                     const SizedBox(height: 16),
                     _buildNavItem('Personal Details', Icons.person_outline_rounded, 'personal'),
                     _buildNavItem('Work Folders', Icons.work_outline_rounded, 'work'),
@@ -429,7 +429,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
               ),
               
               // Vertical Divider
-              Container(width: 1, color: const Color(0xFFE2E8F0)),
+              Container(width: 1, color: const Color(0xFF334155)),
               
               // Main Content Area
               Expanded(
@@ -441,21 +441,21 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                       height: 80,
                       padding: const EdgeInsets.symmetric(horizontal: 32),
                       decoration: const BoxDecoration(
-                        color: Colors.white,
-                        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.2)),
+                        color: Color(0xFF0F172A),
+                        border: Border(bottom: BorderSide(color: Color(0xFF334155), width: 1.2)),
                       ),
                       child: Row(
                         children: [
                           if (_currentTab == 'work' && _currentWorkFolder != null) ...[
                             IconButton(
-                              icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A)),
+                              icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
                               onPressed: () {
                                 setState(() => _currentWorkFolder = null);
                                 _loadFiles();
                               },
                               style: IconButton.styleFrom(
-                                backgroundColor: const Color(0xFFF8FAFC),
-                                side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                backgroundColor: const Color(0xFF1E293B),
+                                side: const BorderSide(color: Color(0xFF334155)),
                               ),
                             ),
                             const SizedBox(width: 16),
@@ -469,23 +469,23 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                               style: GoogleFonts.cormorantGaramond(
                                 fontSize: 24,
                                 fontWeight: FontWeight.bold,
-                                color: const Color(0xFF0F172A),
+                                color: const Color(0xFFD4AF37), // Gold title
                               ),
                             ),
                           ),
                           if (_currentTab == 'voice') ...[
                             ElevatedButton.icon(
                               onPressed: () => _uploadFile('voice'),
-                              icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-                              label: const Text('Upload Audio'),
+                              icon: const Icon(Icons.cloud_upload_outlined, size: 18, color: Color(0xFFD4AF37)),
+                              label: const Text('Upload Audio', style: TextStyle(color: Color(0xFFD4AF37))),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFFF8FAFC),
-                                foregroundColor: const Color(0xFF0F172A),
+                                backgroundColor: const Color(0xFF1E293B),
+                                foregroundColor: const Color(0xFFD4AF37),
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                                  side: const BorderSide(color: Color(0xFFD4AF37)),
                                 ),
                                 textStyle: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w600, fontSize: 13),
                               ),
@@ -496,8 +496,8 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                               icon: Icon(_isRecording ? Icons.stop_circle_outlined : Icons.mic_none_rounded, size: 18),
                               label: Text(_isRecording ? 'Stop Recording' : 'Record Audio'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _isRecording ? const Color(0xFFDC2626) : const Color(0xFF0F172A),
-                                foregroundColor: _isRecording ? Colors.white : const Color(0xFFD4AF37),
+                                backgroundColor: _isRecording ? const Color(0xFFDC2626) : const Color(0xFFD4AF37),
+                                foregroundColor: _isRecording ? Colors.white : const Color(0xFF0F172A),
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -513,24 +513,23 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                                   _uploadFile(_currentTab);
                                 }
                               },
-                              icon: Icon(_currentTab == 'work' && _currentWorkFolder == null ? Icons.create_new_folder_rounded : Icons.cloud_upload_rounded, size: 18, color: const Color(0xFFD4AF37)),
-                              label: Text(_currentTab == 'work' && _currentWorkFolder == null ? 'New Folder' : 'Upload File', style: const TextStyle(fontFamily: 'Montserrat', color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 13)),
+                              icon: Icon(_currentTab == 'work' && _currentWorkFolder == null ? Icons.create_new_folder_rounded : Icons.cloud_upload_rounded, size: 18, color: const Color(0xFF0F172A)),
+                              label: Text(_currentTab == 'work' && _currentWorkFolder == null ? 'New Folder' : 'Upload File', style: const TextStyle(fontFamily: 'Montserrat', color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 13)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0F172A),
+                                backgroundColor: const Color(0xFFD4AF37),
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                side: const BorderSide(color: Color(0xFFD4AF37)),
                               ),
                             ),
                           ],
                           const SizedBox(width: 16),
                           IconButton(
-                            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                            icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8)),
                             onPressed: () => Navigator.pop(context),
                             style: IconButton.styleFrom(
-                              backgroundColor: const Color(0xFFF8FAFC),
-                              side: const BorderSide(color: Color(0xFFE2E8F0)),
+                              backgroundColor: const Color(0xFF1E293B),
+                              side: const BorderSide(color: Color(0xFF334155)),
                             ),
                           ),
                         ],
@@ -540,9 +539,9 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                     // Content Area
                     Expanded(
                       child: Container(
-                        color: Colors.white,
+                        color: const Color(0xFF0F172A), // Dark body
                         child: _isLoading 
-                          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F172A)))
+                          ? const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))
                           : _currentTab == 'personal' 
                               ? _buildFileList(_personalFiles, 'personal') 
                               : _currentTab == 'voice' 
@@ -578,18 +577,18 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
             duration: const Duration(milliseconds: 150),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF0F172A) : Colors.transparent,
+              color: isSelected ? const Color(0xFF334155) : Colors.transparent, // Subtle dark active state
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               children: [
-                Icon(icon, color: isSelected ? const Color(0xFFD4AF37) : const Color(0xFF475569), size: 20),
+                Icon(icon, color: isSelected ? const Color(0xFFD4AF37) : const Color(0xFF94A3B8), size: 20),
                 const SizedBox(width: 12),
                 Text(
                   title, 
                   style: TextStyle(
                     fontFamily: 'Montserrat',
-                    color: isSelected ? Colors.white : const Color(0xFF475569), 
+                    color: isSelected ? Colors.white : const Color(0xFF94A3B8), 
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     fontSize: 13.5,
                   ),
@@ -606,18 +605,11 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
     if (files.isEmpty) {
       return Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
-                boxShadow: [
-                  BoxShadow(color: const Color(0xFFD4AF37).withValues(alpha: 0.2), blurRadius: 16),
-                ],
-              ),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(color: const Color(0xFF1E293B), shape: BoxShape.circle, border: Border.all(color: const Color(0xFF334155))),
               child: const Icon(Icons.folder_open_rounded, size: 48, color: Color(0xFFD4AF37)),
             ).animate().scale(duration: 400.ms, curve: Curves.easeOutBack),
             const SizedBox(height: 20),
@@ -625,12 +617,12 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
               category == 'work' && _currentWorkFolder == null ? "No Work Folders Created Yet" 
               : category == 'voice' ? "No Voice Notes Recorded Yet"
               : "No Files Uploaded Here Yet", 
-              style: GoogleFonts.cormorantGaramond(color: const Color(0xFF0F172A), fontSize: 24, fontWeight: FontWeight.bold),
+              style: GoogleFonts.cormorantGaramond(color: const Color(0xFFD4AF37), fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
               "Click the action button above to upload or create a new file.", 
-              style: TextStyle(fontFamily: 'Montserrat', color: Color(0xFF64748B), fontSize: 13.5),
+              style: TextStyle(fontFamily: 'Montserrat', color: Color(0xFF94A3B8), fontSize: 13.5),
             ),
           ],
         ).animate().fadeIn().slideY(begin: 0.1),
@@ -650,11 +642,11 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
           return Container(
             margin: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color(0xFF1E293B),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+              border: Border.all(color: const Color(0xFF334155), width: 1.2),
               boxShadow: [
-                BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
               ],
             ),
             child: Material(
@@ -675,6 +667,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                         decoration: BoxDecoration(
                           color: const Color(0xFF0F172A),
                           borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFF334155)),
                         ),
                         child: const Icon(Icons.folder_rounded, color: Color(0xFFD4AF37), size: 20),
                       ),
@@ -682,7 +675,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                       Expanded(
                         child: Text(
                           fileName,
-                          style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)),
+                          style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white),
                         ),
                       ),
                       const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF94A3B8), size: 14),
@@ -696,32 +689,32 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
 
         // File Item
         IconData icon = Icons.insert_drive_file_rounded;
-        Color iconColor = const Color(0xFF475569);
-        Color iconBg = const Color(0xFFF8FAFC);
+        Color iconColor = const Color(0xFF94A3B8);
+        Color iconBg = const Color(0xFF334155);
         
         final lowerName = fileName.toLowerCase();
         if (lowerName.endsWith('.pdf')) {
           icon = Icons.picture_as_pdf_rounded;
-          iconColor = const Color(0xFFDC2626);
-          iconBg = const Color(0xFFFEF2F2);
+          iconColor = const Color(0xFFFCA5A5);
+          iconBg = const Color(0xFFDC2626).withValues(alpha: 0.15);
         } else if (lowerName.endsWith('.jpg') || lowerName.endsWith('.png') || lowerName.endsWith('.jpeg')) {
           icon = Icons.image_rounded;
-          iconColor = const Color(0xFF8B5CF6);
-          iconBg = const Color(0xFFF3E8FF);
+          iconColor = const Color(0xFFC4B5FD);
+          iconBg = const Color(0xFF8B5CF6).withValues(alpha: 0.15);
         } else if (lowerName.endsWith('.m4a') || lowerName.endsWith('.mp3') || lowerName.endsWith('.wav')) {
           icon = Icons.audiotrack_rounded;
-          iconColor = const Color(0xFFB45309);
-          iconBg = const Color(0xFFFEF3C7);
+          iconColor = const Color(0xFFFDE68A);
+          iconBg = const Color(0xFFD97706).withValues(alpha: 0.15);
         }
 
         return Container(
           margin: const EdgeInsets.only(bottom: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF1E293B),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+            border: Border.all(color: const Color(0xFF334155), width: 1.2),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 2)),
             ],
           ),
           child: Padding(
@@ -740,14 +733,14 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                     children: [
                       Text(
                         fileName, 
-                        style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF0F172A)), 
+                        style: const TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white), 
                         maxLines: 1, 
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         'Size: ${(file.size ?? 0) ~/ 1024} KB', 
-                        style: const TextStyle(fontFamily: 'Montserrat', color: Color(0xFF64748B), fontSize: 11.5),
+                        style: const TextStyle(fontFamily: 'Montserrat', color: Color(0xFF94A3B8), fontSize: 11.5),
                       ),
                     ],
                   ),
@@ -756,17 +749,17 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.download_rounded, color: Color(0xFF0F172A), size: 18),
+                      icon: const Icon(Icons.download_rounded, color: Color(0xFFD4AF37), size: 18),
                       onPressed: () => _downloadFile(file.path),
                       tooltip: "Download File",
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFFF8FAFC), side: const BorderSide(color: Color(0xFFE2E8F0))),
+                      style: IconButton.styleFrom(backgroundColor: const Color(0xFF334155), side: const BorderSide(color: Color(0xFF475569))),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                      icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFFCA5A5), size: 18),
                       onPressed: () => _deleteFile(category, fileName, itemPath: file.path),
                       tooltip: "Delete File",
-                      style: IconButton.styleFrom(backgroundColor: const Color(0xFFFEF2F2)),
+                      style: IconButton.styleFrom(backgroundColor: const Color(0xFFDC2626).withValues(alpha: 0.15)),
                     ),
                   ],
                 ),

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import '../theme/app_theme.dart';
-import '../services/google_docs_service.dart';
+import '../services/microsoft_word_service.dart';
 import '../services/ai_service.dart';
-import 'google_docs_webview_screen.dart';
+import 'word_webview_screen.dart';
 import '../widgets/responsive.dart';
 import '../models/deal.dart' as old;
 import '../services/deal_service.dart';
@@ -20,32 +20,27 @@ class DocumentListScreen extends StatefulWidget {
 }
 
 class _DocumentListScreenState extends State<DocumentListScreen> {
-  List<drive.File> _documents = [];
+  List<dynamic> _documents = [];
   String _searchQuery = '';
   bool _isLoading = false;
   String? _currentUser;
 
-  Future<List<drive.File>> _loadLocalDocumentsCache() async {
+  Future<List<dynamic>> _loadLocalDocumentsCache() async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = prefs.getStringList('local_docs_cache') ?? [];
     return encoded.map((str) {
       final map = jsonDecode(str);
-      return drive.File(
-        id: map['id'],
-        name: map['name'],
-        webViewLink: map['webViewLink'],
-        modifiedTime: map['modifiedTime'] != null ? DateTime.parse(map['modifiedTime']) : null,
-      );
+      return map;
     }).toList();
   }
 
-  Future<void> _saveLocalDocumentsCache(List<drive.File> docs) async {
+  Future<void> _saveLocalDocumentsCache(List<dynamic> docs) async {
     final prefs = await SharedPreferences.getInstance();
     final List<String> encoded = docs.map((d) => jsonEncode({
-      'id': d.id,
-      'name': d.name,
-      'webViewLink': d.webViewLink,
-      'modifiedTime': d.modifiedTime?.toIso8601String(),
+      'id': d['id'],
+      'name': d['name'],
+      'webUrl': d['webUrl'],
+      'lastModifiedDateTime': d['lastModifiedDateTime'],
     })).toList();
     await prefs.setStringList('local_docs_cache', encoded);
   }
@@ -58,7 +53,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
 
   Future<void> _checkSignInStatus() async {
     setState(() => _isLoading = true);
-    final account = await GoogleDocsService.signIn();
+    final account = await MicrosoftWordService.signIn();
     if (account != null) {
       _currentUser = account;
       await _loadDocuments();
@@ -69,7 +64,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
 
   Future<void> _signIn() async {
     setState(() => _isLoading = true);
-    final account = await GoogleDocsService.signIn();
+    final account = await MicrosoftWordService.signIn();
     if (account != null) {
       _currentUser = account;
       await _loadDocuments();
@@ -79,7 +74,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
   }
 
   Future<void> _signOut() async {
-    await GoogleDocsService.signOut();
+    await MicrosoftWordService.signOut();
     setState(() {
       _currentUser = null;
       _documents = [];
@@ -90,9 +85,9 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     
-    List<drive.File> driveDocs = [];
+    List<dynamic> driveDocs = [];
     try {
-      driveDocs = await GoogleDocsService.getDriveFiles();
+      driveDocs = await MicrosoftWordService.getDriveFiles();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -231,7 +226,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                           setDialogState(() => selectedWorkId = val);
                           if (val != null) {
                             final d = availableDeals.firstWhere((element) => element.id.toString() == val);
-                            titleController.text = '\${d.name} - Document';
+                            titleController.text = '${d.name} - Document';
                           }
                         },
                       ),
@@ -269,7 +264,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
   Future<void> _createNewDocument(String title, {String? workId}) async {
     setState(() => _isLoading = true);
     try {
-      final url = await GoogleDocsService.createNewDocument(title);
+      final url = await MicrosoftWordService.createNewDocument(title);
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -356,7 +351,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => GoogleDocsWebviewScreen(
+            builder: (_) => WordWebviewScreen(
               url: urlString,
               title: title,
             ),
@@ -368,8 +363,8 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
     }
   }
 
-  Future<void> _showAiSummary(drive.File doc) async {
-    if (doc.id == null) return;
+  Future<void> _showAiSummary(dynamic doc) async {
+    if (doc['id'] == null) return;
     
     // Show a loading dialog first
     showDialog(
@@ -381,7 +376,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
     );
 
     try {
-      final summary = await AiService.summarizeDocument(doc.id!, doc.name ?? 'Document');
+      final summary = await AiService.summarizeDocument(doc['id']!, doc['name'] ?? 'Document');
       
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
@@ -475,13 +470,13 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
     );
   }
 
-  Future<void> _confirmDelete(drive.File doc) async {
+  Future<void> _confirmDelete(dynamic doc) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceColor,
         title: const Text('Delete Document', style: TextStyle(color: AppTheme.textPrimary, fontFamily: 'Montserrat', fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to delete "${doc.name}"? This action cannot be undone and will permanently delete the file from your Documents Vault.', style: const TextStyle(color: AppTheme.textSecondary, fontFamily: 'Montserrat')),
+        content: Text('Are you sure you want to delete "${doc['name']}"? This action cannot be undone and will permanently delete the file from your Documents Vault.', style: const TextStyle(color: AppTheme.textSecondary, fontFamily: 'Montserrat')),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -495,17 +490,17 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
       ),
     );
 
-    if (confirm == true && doc.id != null) {
+    if (confirm == true && doc['id'] != null) {
       setState(() => _isLoading = true);
       try {
-        final success = await GoogleDocsService.deleteDocument(doc.id!);
+        final success = await MicrosoftWordService.deleteDocument(doc['id']!);
         
         bool deletedLocally = false;
         
         // Remove from local cache
         final cachedDocs = await _loadLocalDocumentsCache();
         final initialLength = cachedDocs.length;
-        cachedDocs.removeWhere((d) => d.id == doc.id);
+        cachedDocs.removeWhere((d) => d['id'] == doc['id']);
         if (cachedDocs.length < initialLength) {
            await _saveLocalDocumentsCache(cachedDocs);
            deletedLocally = true;
@@ -521,7 +516,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                 final originalCount = parsed.length;
                 parsed.removeWhere((p) {
                    final urlStr = p['url']?.toString() ?? '';
-                   return urlStr.contains(doc.id!);
+                   return urlStr.contains(doc['id']!);
                 });
                 if (parsed.length < originalCount) {
                    final map = deal.toMap();
@@ -717,8 +712,8 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           child: ListTile(
             leading: const Icon(Icons.description, color: Colors.blueAccent),
-            title: Text(doc.name ?? 'Untitled', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
-            subtitle: Text('Modified: ${doc.modifiedTime?.toLocal().toString().split('.')[0] ?? ''}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+            title: Text(doc['name'] ?? 'Untitled', style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
+            subtitle: Text('Modified: ${doc['lastModifiedDateTime'] != null ? DateTime.parse(doc['lastModifiedDateTime']).toLocal().toString().split('.')[0] : ''}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -735,7 +730,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                 const Icon(Icons.open_in_new, color: AppTheme.accentColor, size: 18),
               ],
             ),
-            onTap: () => _openUrl(doc.webViewLink, doc.name ?? 'Google Doc'),
+            onTap: () => _openUrl(doc['webUrl'], doc['name'] ?? 'Word Doc'),
           ),
         ).animate().fadeIn(delay: Duration(milliseconds: 50 * index)).slideX();
       },

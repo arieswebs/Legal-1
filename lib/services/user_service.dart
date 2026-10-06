@@ -34,7 +34,14 @@ class UserService {
             'is_active': true,
           };
         }
-      }).where((u) => u['is_deleted'] != true).toList();
+      }).where((u) {
+        if (u['is_deleted'] == true) return false;
+        final email = (u['email'] ?? '').toString().toLowerCase();
+        if (email == 'admin@cuc.com' || email == 'manager@cuc.com' || email == 'staff@cuc.com') return false;
+        final name = (u['name'] ?? '').toString().toLowerCase();
+        if (name == 'admin' || name == 'manager' || name == 'staff') return false;
+        return true;
+      }).toList();
       
       users.sort((a, b) => (a['role'] ?? '').compareTo(b['role'] ?? ''));
 

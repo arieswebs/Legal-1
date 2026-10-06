@@ -7,21 +7,21 @@ import 'package:webview_windows/webview_windows.dart';
 import '../theme/app_theme.dart';
 import '../widgets/responsive.dart';
 
-class GoogleDocsWebviewScreen extends StatefulWidget {
+class WordWebviewScreen extends StatefulWidget {
   final String url;
   final String title;
 
-  const GoogleDocsWebviewScreen({
+  const WordWebviewScreen({
     super.key,
     required this.url,
-    this.title = 'Google Docs Vault',
+    this.title = 'Microsoft Word Online',
   });
 
   @override
-  State<GoogleDocsWebviewScreen> createState() => _GoogleDocsWebviewScreenState();
+  State<WordWebviewScreen> createState() => _WordWebviewScreenState();
 }
 
-class _GoogleDocsWebviewScreenState extends State<GoogleDocsWebviewScreen> {
+class _WordWebviewScreenState extends State<WordWebviewScreen> {
   final _controller = WebviewController();
   bool _isLoading = true;
   bool _isWebviewInitialized = false;
@@ -39,7 +39,7 @@ class _GoogleDocsWebviewScreenState extends State<GoogleDocsWebviewScreen> {
     try {
       if (!_environmentInitialized) {
         final appDir = await getApplicationSupportDirectory();
-        final userDataPath = '${appDir.path}${Platform.pathSeparator}google_docs_webview_data';
+        final userDataPath = '${appDir.path}${Platform.pathSeparator}word_webview_data';
         await Directory(userDataPath).create(recursive: true);
         await WebviewController.initializeEnvironment(
           userDataPath: userDataPath,

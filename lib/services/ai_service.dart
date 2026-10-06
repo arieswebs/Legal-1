@@ -2,14 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'google_docs_service.dart';
+import 'microsoft_word_service.dart';
 
 class AiService {
   /// Calls the Gemini API to summarize the document.
   /// Falls back to a basic heuristic if the GEMINI_API_KEY is not set.
   static Future<Map<String, dynamic>> summarizeDocument(String documentId, String documentName) async {
     try {
-      final text = await GoogleDocsService.getDocumentText(documentId);
+      final text = await MicrosoftWordService.getDocumentText(documentId);
       final cleanText = text.trim();
       
       if (cleanText.isEmpty) {

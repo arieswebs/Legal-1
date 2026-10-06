@@ -686,171 +686,182 @@ class _WorkfileCardItemState extends State<_WorkfileCardItem> {
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedContainer(
+        child: AnimatedScale(
           duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: _isHovered ? const Color(0xFF94A3B8) : const Color(0xFFE2E8F0),
-              width: 1.0,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: _isHovered ? 0.04 : 0.015),
-                blurRadius: _isHovered ? 12 : 6,
-                offset: const Offset(0, 2),
+          scale: _isHovered ? 1.01 : 1.0,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOutCubic,
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _isHovered ? const Color(0xFFD4AF37) : const Color(0xFFE2E8F0),
+                width: _isHovered ? 1.2 : 1.0,
               ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Sleek Monogram Badge
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: _isHovered ? 0.08 : 0.015),
+                  blurRadius: _isHovered ? 16 : 6,
+                  offset: const Offset(0, 4),
                 ),
-                child: Center(
-                  child: Text(
-                    initialChar,
-                    style: GoogleFonts.montserrat(
-                      color: const Color(0xFF0F172A),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+              ],
+            ),
+            child: Row(
+              children: [
+                // Sleek Monogram Badge
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Center(
+                    child: Text(
+                      initialChar,
+                      style: GoogleFonts.montserrat(
+                        color: const Color(0xFF0F172A),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
+                const SizedBox(width: 16),
 
-              // Middle Content Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: GoogleFonts.montserrat(
-                              color: const Color(0xFF0F172A),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (workfileNo.isNotEmpty) ...[
-                          const SizedBox(width: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
+                // Middle Content Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
                             child: Text(
-                              '#$workfileNo',
+                              title,
                               style: GoogleFonts.montserrat(
-                                color: const Color(0xFF475569),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F172A),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
                               ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (workfileNo.isNotEmpty) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Text(
+                                '#$workfileNo',
+                                style: GoogleFonts.montserrat(
+                                  color: const Color(0xFF475569),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Detail Metadata Chips Row
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 6,
+                        children: [
+                          if (clientName.isNotEmpty)
+                            _buildDetailChip(Icons.person_outline_rounded, clientName),
+                          if (caseType.isNotEmpty)
+                            _buildDetailChip(Icons.gavel_rounded, caseType),
+                          if (year.isNotEmpty)
+                            _buildDetailChip(Icons.calendar_month_rounded, 'Year: $year'),
+                          if (court.isNotEmpty)
+                            _buildDetailChip(Icons.account_balance_rounded, court),
+                          if (clientStatus.isNotEmpty)
+                            _buildDetailChip(Icons.verified_user_outlined, 'Status: $clientStatus'),
+                          if (dateLabel.isNotEmpty)
+                            _buildDetailChip(Icons.calendar_today_rounded, dateLabel),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+
+                // Right Status Badge & Arrow
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isOpen ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isOpen ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isOpen ? const Color(0xFF10B981) : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            status,
+                            style: GoogleFonts.montserrat(
+                              color: isOpen ? const Color(0xFF047857) : const Color(0xFF475569),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 6),
-
-                    // Detail Metadata Chips Row
-                    Wrap(
-                      spacing: 14,
-                      runSpacing: 4,
-                      children: [
-                        if (clientName.isNotEmpty)
-                          _buildDetailChip(Icons.person_outline_rounded, clientName),
-                        if (caseType.isNotEmpty)
-                          _buildDetailChip(Icons.gavel_rounded, caseType),
-                        if (year.isNotEmpty)
-                          _buildDetailChip(Icons.calendar_month_rounded, 'Year: $year'),
-                        if (court.isNotEmpty)
-                          _buildDetailChip(Icons.account_balance_rounded, court),
-                        if (clientStatus.isNotEmpty)
-                          _buildDetailChip(Icons.verified_user_outlined, 'Status: $clientStatus'),
-                        if (dateLabel.isNotEmpty)
-                          _buildDetailChip(Icons.calendar_today_rounded, dateLabel),
-                      ],
+                    const SizedBox(width: 16),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _isHovered ? const Color(0xFFD4AF37) : const Color(0xFFF8FAFC),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: _isHovered ? const Color(0xFFD4AF37) : const Color(0xFFE2E8F0),
+                        ),
+                        boxShadow: _isHovered ? [
+                          BoxShadow(
+                            color: const Color(0xFFD4AF37).withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          )
+                        ] : [],
+                      ),
+                      child: Icon(
+                        Icons.chevron_right_rounded,
+                        color: _isHovered ? Colors.white : const Color(0xFF64748B),
+                        size: 18,
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 16),
-
-              // Right Status Badge & Arrow
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isOpen ? const Color(0xFFECFDF5) : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isOpen ? const Color(0xFFA7F3D0) : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isOpen ? const Color(0xFF10B981) : const Color(0xFF64748B),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          status,
-                          style: GoogleFonts.montserrat(
-                            color: isOpen ? const Color(0xFF047857) : const Color(0xFF475569),
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: _isHovered ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: _isHovered ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
-                      ),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      color: _isHovered ? Colors.white : const Color(0xFF64748B),
-                      size: 16,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -863,12 +874,15 @@ class _WorkfileCardItemState extends State<_WorkfileCardItem> {
       children: [
         Icon(icon, size: 13, color: const Color(0xFF94A3B8)),
         const SizedBox(width: 5),
-        Text(
-          text,
-          style: GoogleFonts.montserrat(
-            color: const Color(0xFF64748B),
-            fontSize: 12,
-            fontWeight: FontWeight.w400,
+        Flexible(
+          child: Text(
+            text,
+            style: GoogleFonts.montserrat(
+              color: const Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

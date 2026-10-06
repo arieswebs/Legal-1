@@ -4,9 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import '../theme/app_theme.dart';
+import '../services/user_service.dart';
+import '../services/auth_service.dart';
 import '../services/case_service.dart';
 import '../utils/display_name_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/client_service.dart';
+import 'billing_screen.dart';
+import 'document_list_screen.dart';
+import 'client_folder_screen.dart';
+import 'client_files_dialog.dart';
+import '../models/client.dart';
+import 'task_management_screen.dart';
+import 'audit_history_screen.dart';
+import 'client_dashboard.dart';
+import 'expense_screen.dart';
 
 class CaseManagementScreen extends StatefulWidget {
   final Map<String, dynamic>? existingCase;
@@ -38,6 +50,10 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
   // Pending Update Log Form State
   final _stageInputController = TextEditingController(text: 'Doc Collection');
   final _proceedingsInputController = TextEditingController();
+  
+  List<String> _selectedHandlingStaffList = [];
+  List<Map<String, dynamic>> _allStaff = [];
+  
   DateTime? _selectedNextHearingDate;
   final List<PlatformFile> _pendingAttachedFiles = [];
 
@@ -95,8 +111,20 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
 
   Future<void> _initUser() async {
     final prefs = await SharedPreferences.getInstance();
+    final users = await UserService.getAllUsers();
+    
+    // Ensure uniqueness by email to prevent Dropdown duplicate value assertions
+    final uniqueUsersMap = <String, Map<String, dynamic>>{};
+    for (var u in users) {
+      final email = u['email']?.toString();
+      if (email != null && email.isNotEmpty) {
+        uniqueUsersMap[email] = u;
+      }
+    }
+    
     if (mounted) {
       setState(() {
+        _allStaff = uniqueUsersMap.values.toList();
         _currentUserEmail = prefs.getString('user_email') ?? '';
       });
     }
@@ -105,19 +133,37 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
   void _populateInitialCaseData() {
     if (widget.existingCase != null) {
       final data = widget.existingCase!;
+      
+      String _safeString(dynamic value) {
+        if (value == null) return '';
+        if (value is List) return value.join(', ');
+        return value.toString();
+      }
+
       _caseId = data['id']?.toString();
-      _caseIdController.text = data['case_number'] ?? data['case_id'] ?? data['workfile_no'] ?? '';
-      _caseTitleController.text = data['case_title'] ?? data['title'] ?? '';
-      _clientController.text = data['client_name'] ?? '';
-      _courtNameController.text = data['court_name'] ?? data['court_details'] ?? '';
-      _courtCaseNumberController.text = data['court_case_number'] ?? data['case_number'] ?? '';
-      _opposingPartyController.text = data['opposing_party'] ?? '';
-      _opposingCounselController.text = data['opposing_counsel'] ?? '';
-      _caseTypeController.text = data['case_type'] ?? '';
-      _feeController.text = data['total_fees'] ?? data['fee'] ?? '';
-      _judgeNameController.text = data['judge_name'] ?? '';
-      _careOfController.text = data['assigned_counsel'] ?? data['responsible_staff'] ?? data['created_by'] ?? data['lawyer_name'] ?? '';
-      _handlingController.text = data['handling_lawyer'] ?? data['handling_staff'] ?? '';
+      _caseIdController.text = _safeString(data['case_number'] ?? data['case_id'] ?? data['workfile_no']);
+      _caseTitleController.text = _safeString(data['case_title'] ?? data['title']);
+      _clientController.text = _safeString(data['client_name']);
+      _courtNameController.text = _safeString(data['court_name'] ?? data['court_details']);
+      _courtCaseNumberController.text = _safeString(data['court_case_number'] ?? data['case_number']);
+      _opposingPartyController.text = _safeString(data['opposing_party']);
+      _opposingCounselController.text = _safeString(data['opposing_counsel']);
+      _caseTypeController.text = _safeString(data['case_type']);
+      _feeController.text = _safeString(data['total_fees'] ?? data['fee']);
+      _judgeNameController.text = _safeString(data['judge_name']);
+      _careOfController.text = _safeString(data['assigned_counsel'] ?? data['created_by'] ?? data['lawyer_name']);
+      
+      dynamic handlingData = data['handling_lawyer'] ?? data['handling_staff'] ?? data['responsible_staff'];
+      if (handlingData is List) {
+        _selectedHandlingStaffList = handlingData.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+        _handlingController.text = _selectedHandlingStaffList.join(', ');
+      } else {
+        _handlingController.text = _safeString(handlingData);
+        if (_handlingController.text.trim().isNotEmpty) {
+          _selectedHandlingStaffList = _handlingController.text.split(',').map((e) => e.trim().replaceAll('[', '').replaceAll(']', '')).where((e) => e.isNotEmpty).toList();
+        }
+      }
+
       if (data['current_stage'] != null && data['current_stage'].toString().trim().isNotEmpty) {
         _stageInputController.text = data['current_stage'].toString();
       }
@@ -263,6 +309,8 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
       'updated_by': _currentUserEmail.isNotEmpty ? _currentUserEmail : 'Staff User',
     };
 
+    _handlingController.text = _selectedHandlingStaffList.join(', ');
+
     setState(() {
       _caseFlowHistory.insert(0, newEntry); // Add to timeline flow (newest first)
       _proceedingsInputController.clear();
@@ -321,7 +369,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
             children: const [
               Icon(Icons.gavel_rounded, color: Colors.white, size: 20),
               SizedBox(width: 10),
-              Text('Case successfully marked as DISPOSED.'),
+              Text('Workfile successfully marked as DISPOSED.'),
             ],
           ),
           backgroundColor: const Color(0xFF8B5CF6),
@@ -341,6 +389,8 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
       final caseNum = _caseIdController.text.trim().isNotEmpty
           ? _caseIdController.text.trim()
           : "CU-2026-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+
+      _handlingController.text = _selectedHandlingStaffList.join(', ');
 
       final currentStageName = _caseFlowHistory.isNotEmpty
           ? _caseFlowHistory.first['stage']
@@ -393,7 +443,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Delete Case Record', style: GoogleFonts.cinzel(color: const Color(0xFF0F172A), fontWeight: FontWeight.bold)),
+        title: Text('Delete Workfile Record', style: GoogleFonts.cinzel(color: const Color(0xFF0F172A), fontWeight: FontWeight.bold)),
         content: Text('Are you sure you want to permanently delete this case and its proceedings history?', style: GoogleFonts.montserrat(color: const Color(0xFF475569))),
         actions: [
           TextButton(
@@ -413,7 +463,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
       try {
         await CaseService.deleteCase(_caseId!);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Case deleted successfully')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Workfile deleted successfully')));
           Navigator.of(context).pop();
         }
       } catch (e) {
@@ -443,7 +493,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              _caseId != null ? 'CASE MANAGEMENT' : 'REGISTER NEW CASE',
+              _caseId != null ? 'WORKFILE MANAGEMENT' : 'REGISTER NEW WORKFILE',
               style: GoogleFonts.cinzel(
                 fontWeight: FontWeight.w800,
                 fontSize: 19,
@@ -490,7 +540,24 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
           Padding(
             padding: const EdgeInsets.only(right: 20.0, top: 8, bottom: 8),
             child: ElevatedButton.icon(
-              onPressed: _saveCaseToBackend,
+              onPressed: () async {
+                final success = await _saveCaseToBackend();
+                if (success && mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Row(
+                        children: const [
+                          Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                          SizedBox(width: 10),
+                          Text('Workfile record saved successfully!'),
+                        ],
+                      ),
+                      backgroundColor: const Color(0xFF10B981),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
               icon: const Icon(Icons.save_rounded, size: 16),
               label: const Text('SAVE RECORD'),
               style: ElevatedButton.styleFrom(
@@ -510,6 +577,10 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (_caseId != null) ...[
+                _buildTopActionMenu(),
+                const SizedBox(height: 16),
+              ],
               // 1. Basic Info Collapsible Header Card
               _buildBasicInfoCard(),
               const SizedBox(height: 20),
@@ -554,6 +625,521 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
     );
   }
 
+  // --- WIDGET: TOP ACTION MENU ---
+  Widget _buildTopActionMenu() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildPremiumActionButton(Icons.info_outline_rounded, 'Workfile Details', 'View full info', () {
+              _showCaseDetailsDialog();
+            }),
+            _buildPremiumDivider(),
+            _buildPremiumActionButton(Icons.person_search_rounded, 'Client Profile', 'View & edit details', () {
+              _showClientDetailsDialog();
+            }),
+            _buildPremiumDivider(),
+            _buildPremiumActionButton(Icons.account_balance_wallet_rounded, 'Accounts', 'Expenses & ledgers', () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => ExpenseScreen(
+                initialCaseId: _caseId
+              )));
+            }),
+            _buildPremiumDivider(),
+            _buildPremiumActionButton(Icons.receipt_long_rounded, 'Billing', 'Invoices', () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => BillingScreen(
+                initialClientName: _clientController.text, 
+                linkedCaseId: _caseId
+              )));
+            }),
+            _buildPremiumDivider(),
+            _buildPremiumActionButton(Icons.folder_open_rounded, 'Client Documents', 'Manage case files', () async {
+              final cName = _clientController.text.trim().toLowerCase();
+              if (cName.isEmpty) return;
+              
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const Center(child: CircularProgressIndicator()),
+              );
+              
+              final clientsData = await ClientService().getAllClients();
+              Client? matchedClient;
+              for (var cData in clientsData) {
+                final c = Client.fromMap(cData);
+                if (c.name?.toLowerCase().trim() == cName) {
+                  matchedClient = c;
+                  break;
+                }
+              }
+              
+              if (mounted) Navigator.pop(context); // remove loading
+              
+              if (matchedClient != null && mounted) {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.black.withValues(alpha: 0.75),
+                  builder: (context) => ClientFilesDialog(client: matchedClient!),
+                );
+              } else if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Client not found in Client Management. Please verify client name.'))
+                );
+              }
+            }),
+            _buildPremiumDivider(),
+            _buildPremiumActionButton(Icons.checklist_rtl_rounded, 'Workfile Tasks', 'Deadlines & todos', () {
+              final cTitle = _caseTitleController.text.trim();
+              final cId = _courtCaseNumberController.text.trim();
+              
+              String displayCaseId = _caseId ?? '';
+              if (cTitle.isNotEmpty && cId.isNotEmpty) {
+                displayCaseId = '$cTitle ($cId)';
+              } else if (cTitle.isNotEmpty) {
+                displayCaseId = cTitle;
+              } else if (cId.isNotEmpty) {
+                displayCaseId = cId;
+              }
+              
+              Navigator.push(context, MaterialPageRoute(builder: (_) => TaskManagementScreen(linkedCaseId: displayCaseId)));
+            }),
+            _buildPremiumDivider(),
+            _buildPremiumActionButton(Icons.history_rounded, 'Activity Log', 'Audit & history', () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AuditHistoryScreen()));
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumDivider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Container(
+        width: 1.5,
+        height: 36,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              const Color(0xFFE2E8F0).withValues(alpha: 0.1),
+              const Color(0xFFE2E8F0),
+              const Color(0xFFE2E8F0).withValues(alpha: 0.1),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumActionButton(IconData icon, String title, String subtitle, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      splashColor: AppTheme.accentColor.withValues(alpha: 0.1),
+      highlightColor: Colors.transparent,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2)),
+                ],
+              ),
+              child: Icon(icon, size: 18, color: AppTheme.accentColor),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title.toUpperCase(),
+                  style: GoogleFonts.montserrat(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showClientDetailsDialog() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+    
+    final clients = await ClientService().getAllClients();
+    final clientName = _clientController.text.trim();
+    final clientData = clients.firstWhere(
+      (c) => c['name'] == clientName || c['email'] == clientName, 
+      orElse: () => <String, dynamic>{},
+    );
+    
+    if (mounted) Navigator.pop(context);
+    
+    if (clientData.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Client details not found.')));
+      return;
+    }
+    
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          child: Container(
+            width: 600,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(color: const Color(0xFF0F172A).withValues(alpha: 0.15), blurRadius: 32, offset: const Offset(0, 16)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0F172A),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.person_rounded, color: AppTheme.accentColor, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Client Details',
+                              style: GoogleFonts.cormorantGaramond(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                            Text(
+                              clientData['name']?.toString() ?? 'Overview',
+                              style: GoogleFonts.montserrat(fontSize: 12, color: const Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                        splashRadius: 24,
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPremiumSectionTitle('1. Contact Info'),
+                        _buildPremiumDetailGrid([
+                          {'icon': Icons.person_rounded, 'label': 'Name', 'value': clientData['name']?.toString() ?? 'N/A'},
+                          {'icon': Icons.email_rounded, 'label': 'Email', 'value': clientData['email']?.toString() ?? 'N/A'},
+                          {'icon': Icons.phone_rounded, 'label': 'Phone', 'value': clientData['phone']?.toString() ?? 'N/A'},
+                          {'icon': Icons.location_on_rounded, 'label': 'Address', 'value': clientData['address']?.toString() ?? 'N/A'},
+                        ]),
+                        
+                        if ((clientData['company'] != null && clientData['company'].toString().trim().isNotEmpty) ||
+                            (clientData['gst'] != null && clientData['gst'].toString().trim().isNotEmpty)) ...[
+                          const SizedBox(height: 24),
+                          _buildPremiumSectionTitle('2. Business Info'),
+                          _buildPremiumDetailGrid([
+                            if (clientData['company'] != null && clientData['company'].toString().trim().isNotEmpty)
+                              {'icon': Icons.business_rounded, 'label': 'Company', 'value': clientData['company'].toString()},
+                            if (clientData['gst'] != null && clientData['gst'].toString().trim().isNotEmpty)
+                              {'icon': Icons.receipt_long_rounded, 'label': 'GST Number', 'value': clientData['gst'].toString()},
+                          ]),
+                        ],
+                        
+                        if ((clientData['type_of_work'] != null && clientData['type_of_work'].toString().trim().isNotEmpty) ||
+                            (clientData['balance_due'] != null && clientData['balance_due'].toString().trim().isNotEmpty) ||
+                            (clientData['notes'] != null && clientData['notes'].toString().trim().isNotEmpty)) ...[
+                          const SizedBox(height: 24),
+                          _buildPremiumSectionTitle('3. Additional Details'),
+                          _buildPremiumDetailGrid([
+                            if (clientData['type_of_work'] != null && clientData['type_of_work'].toString().trim().isNotEmpty)
+                              {'icon': Icons.work_rounded, 'label': 'Type of Work', 'value': clientData['type_of_work'].toString()},
+                            if (clientData['balance_due'] != null && clientData['balance_due'].toString().trim().isNotEmpty)
+                              {'icon': Icons.account_balance_wallet_rounded, 'label': 'Balance Due', 'value': '₹${clientData['balance_due']}'},
+                            if (clientData['notes'] != null && clientData['notes'].toString().trim().isNotEmpty)
+                              {'icon': Icons.notes_rounded, 'label': 'Notes', 'value': clientData['notes'].toString()},
+                          ], crossAxisCount: 1),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _showCaseDetailsDialog() {
+    String handledByNames = _selectedHandlingStaffList.isNotEmpty 
+      ? _selectedHandlingStaffList.map((email) {
+          final staff = _allStaff.firstWhere((s) => s['email'] == email, orElse: () => <String, dynamic>{});
+          return staff.isNotEmpty ? (staff['name']?.toString() ?? staff['username']?.toString() ?? email) : email;
+        }).join(', ')
+      : 'N/A';
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Container(
+          width: 600,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(color: const Color(0xFF0F172A).withValues(alpha: 0.15), blurRadius: 32, offset: const Offset(0, 16)),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF0F172A),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.description_rounded, color: AppTheme.accentColor, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Workfile Details',
+                            style: GoogleFonts.cormorantGaramond(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          Text(
+                            _caseIdController.text.trim().isNotEmpty ? _caseIdController.text : 'Complete Overview',
+                            style: GoogleFonts.montserrat(fontSize: 12, color: const Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                      splashRadius: 24,
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildPremiumSectionTitle('1. Workfile Overview'),
+                      _buildPremiumDetailGrid([
+                        {'icon': Icons.title_rounded, 'label': 'Workfile Title', 'value': _caseTitleController.text.trim().isNotEmpty ? _caseTitleController.text : 'N/A'},
+                        {'icon': Icons.folder_open_rounded, 'label': 'File No', 'value': _caseIdController.text.trim().isNotEmpty ? _caseIdController.text : 'N/A'},
+                        {'icon': Icons.tag_rounded, 'label': 'Court Workfile No', 'value': _courtCaseNumberController.text.trim().isNotEmpty ? _courtCaseNumberController.text : 'N/A'},
+                        {'icon': Icons.category_rounded, 'label': 'Workfile Type', 'value': _caseTypeController.text.trim().isNotEmpty ? _caseTypeController.text : 'N/A'},
+                      ]),
+                      const SizedBox(height: 24),
+                      
+                      _buildPremiumSectionTitle('2. Court & Bench'),
+                      _buildPremiumDetailGrid([
+                        {'icon': Icons.account_balance_rounded, 'label': 'Court Name', 'value': _courtNameController.text.trim().isNotEmpty ? _courtNameController.text : 'N/A'},
+                        {'icon': Icons.gavel_rounded, 'label': 'Judge Name', 'value': _judgeNameController.text.trim().isNotEmpty ? _judgeNameController.text : 'N/A'},
+                      ]),
+                      const SizedBox(height: 24),
+                      
+                      _buildPremiumSectionTitle('3. Client & Representation'),
+                      _buildPremiumDetailGrid([
+                        {'icon': Icons.person_rounded, 'label': 'Client Name', 'value': _clientController.text.trim().isNotEmpty ? _clientController.text : 'N/A'},
+                        {'icon': Icons.supervisor_account_rounded, 'label': 'Care Of (C/O)', 'value': _careOfController.text.trim().isNotEmpty ? _careOfController.text : 'N/A'},
+                        {'icon': Icons.group_work_rounded, 'label': 'Handled By', 'value': handledByNames},
+                      ], crossAxisCount: 1), 
+                      const SizedBox(height: 24),
+
+                      _buildPremiumSectionTitle('4. Status'),
+                      _buildPremiumDetailGrid([
+                        {'icon': Icons.stairs_rounded, 'label': 'Current Stage', 'value': _primaryCaseStatus},
+                      ]),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Text(
+        title.toUpperCase(),
+        style: GoogleFonts.montserrat(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFF64748B),
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumDetailGrid(List<Map<String, dynamic>> items, {int crossAxisCount = 2}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 400;
+        final actualCrossAxisCount = isMobile ? 1 : crossAxisCount;
+        
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: actualCrossAxisCount,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            mainAxisExtent: 72,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(item['icon'] as IconData, size: 18, color: AppTheme.accentColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          item['label'] as String,
+                          style: GoogleFonts.montserrat(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          item['value'] as String,
+                          style: GoogleFonts.montserrat(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1, // Only 1 line because Grid sets a fixed height, preventing huge overflows. If we need multiple lines we can adjust. Actually Handled By might be long, let's allow 2 lines. Wait, GridView has mainAxisExtent: 72. So maxLines 2 is fine.
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // --- WIDGET 1: BASIC CASE INFO CARD ---
   Widget _buildBasicInfoCard() {
     return Container(
@@ -595,7 +1181,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
                         Text(
                           _caseTitleController.text.isNotEmpty
                               ? _caseTitleController.text
-                              : 'Untitled Case (Click to fill case metadata)',
+                              : 'Untitled Workfile (Click to fill workfile metadata)',
                           style: GoogleFonts.montserrat(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -629,7 +1215,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
                 children: [
                   Row(
                     children: [
-                      Expanded(child: _buildCompactInput(_caseTitleController, 'Case Title', Icons.title)),
+                      Expanded(child: _buildCompactInput(_caseTitleController, 'Workfile Title', Icons.title)),
                       const SizedBox(width: 14),
                       Expanded(child: _buildCompactInput(_clientController, 'Client Name', Icons.person)),
                     ],
@@ -639,7 +1225,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
                     children: [
                       Expanded(child: _buildCompactInput(_courtNameController, 'Court Name', Icons.account_balance)),
                       const SizedBox(width: 14),
-                      Expanded(child: _buildCompactInput(_courtCaseNumberController, 'Court Case / Filing #', Icons.numbers)),
+                      Expanded(child: _buildCompactInput(_courtCaseNumberController, 'Court Workfile / Filing #', Icons.numbers)),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -653,7 +1239,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _buildCompactInput(_caseTypeController, 'Case Type / Category', Icons.category)),
+                      Expanded(child: _buildCompactInput(_caseTypeController, 'Workfile Type / Category', Icons.category)),
                       const SizedBox(width: 14),
                       Expanded(child: _buildCompactInput(_feeController, 'Total Agreed Fee (₹)', Icons.currency_rupee)),
                     ],
@@ -722,7 +1308,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
             const SizedBox(height: 14),
 
             // 1. Case Status Input (Pending / Disposed)
-            _buildFieldHeader('1. CASE STATUS'),
+            _buildFieldHeader('1. WORKFILE STATUS'),
             const SizedBox(height: 5),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -770,7 +1356,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
             const SizedBox(height: 14),
 
             // 2. Stage of Case Input Field
-            _buildFieldHeader('2. STAGE OF CASE'),
+            _buildFieldHeader('2. STAGE OF WORKFILE'),
             const SizedBox(height: 5),
             TextField(
               controller: _stageInputController,
@@ -821,8 +1407,68 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
 
             const SizedBox(height: 14),
 
-            // 4. Next Hearing Date
-            _buildFieldHeader('4. NEXT HEARING DATE'),
+            // 4. Assign Staff Fields
+            _buildFieldHeader('4. UPDATE STAFF (OPTIONAL)'),
+            const SizedBox(height: 5),
+            if (_selectedHandlingStaffList.isNotEmpty) ...[
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _selectedHandlingStaffList.map((email) {
+                  final staffName = _allStaff.firstWhere((s) => s['email'] == email, orElse: () => {'name': email})['name'] ?? email;
+                  return Chip(
+                    label: Text(staffName, style: GoogleFonts.montserrat(fontSize: 12, fontWeight: FontWeight.w600)),
+                    backgroundColor: const Color(0xFFEDE9FE),
+                    deleteIcon: const Icon(Icons.close, size: 14, color: Color(0xFF6D28D9)),
+                    onDeleted: () {
+                      setState(() {
+                        _selectedHandlingStaffList.remove(email);
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+            ],
+            DropdownButtonFormField<String>(
+              value: null,
+              decoration: InputDecoration(
+                hintText: 'Add Handled By (Multiple allowed)',
+                hintStyle: GoogleFonts.montserrat(fontSize: 13, color: const Color(0xFF94A3B8)),
+                prefixIcon: const Icon(Icons.gavel_rounded, color: AppTheme.accentColor, size: 18),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppTheme.accentColor, width: 1.5),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+              items: _allStaff.where((s) => !_selectedHandlingStaffList.contains(s['email'])).map((staff) {
+                final email = staff['email']?.toString() ?? '';
+                final name = staff['name']?.toString() ?? staff['username']?.toString() ?? email;
+                return DropdownMenuItem<String>(
+                  value: email,
+                  child: Text(name, style: GoogleFonts.montserrat(fontSize: 13.5, color: const Color(0xFF0F172A), fontWeight: FontWeight.w600)),
+                );
+              }).toList(),
+              onChanged: (val) {
+                if (val != null) {
+                  setState(() {
+                    _selectedHandlingStaffList.add(val);
+                  });
+                }
+              },
+            ),
+
+            const SizedBox(height: 14),
+
+            // 5. Next Hearing Date
+            _buildFieldHeader('5. NEXT HEARING DATE'),
             const SizedBox(height: 5),
             InkWell(
               onTap: () async {
@@ -880,8 +1526,8 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
 
             const SizedBox(height: 14),
 
-            // 5. File Upload Section
-            _buildFieldHeader('5. UPLOAD PROCEEDING FILES / DOCUMENTS'),
+            // 6. File Upload Section
+            _buildFieldHeader('6. UPLOAD PROCEEDING FILES / DOCUMENTS'),
             const SizedBox(height: 5),
             OutlinedButton.icon(
               onPressed: _pickPendingFiles,
@@ -969,7 +1615,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'CASE PROCEEDINGS TIMELINE FLOW',
+                    'WORKFILE PROCEEDINGS TIMELINE FLOW',
                     style: GoogleFonts.montserrat(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w800,
@@ -1216,7 +1862,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'CASE DISPOSAL & FINAL ORDER DETAILS',
+                'WORKFILE DISPOSAL & FINAL ORDER DETAILS',
                 style: GoogleFonts.montserrat(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
@@ -1229,7 +1875,7 @@ class _CaseManagementScreenState extends State<CaseManagementScreen> {
           const SizedBox(height: 20),
 
           // 1. Case Status Input (Pending / Disposed)
-          _buildFieldHeader('1. CASE STATUS'),
+          _buildFieldHeader('1. WORKFILE STATUS'),
           const SizedBox(height: 6),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14),

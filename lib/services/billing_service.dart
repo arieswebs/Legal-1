@@ -123,9 +123,19 @@ class BillingService {
     String statusFilter = 'All',
     DateTime? startDate,
     DateTime? endDate,
+    String? caseIdFilter,
   }) async {
     final rawBillings = await getBillings();
     var billings = rawBillings.map((m) => Billing.fromJson(m)).toList();
+
+    if (caseIdFilter != null && caseIdFilter.isNotEmpty) {
+      billings = billings.where((b) {
+        final cid = b.data?['case_id']?.toString() ?? 
+                    b.data?['linked_case_id']?.toString() ?? 
+                    b.data?['caseId']?.toString();
+        return cid == caseIdFilter;
+      }).toList();
+    }
 
     if (statusFilter == 'Paid') {
       billings = billings.where((b) {

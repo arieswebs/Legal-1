@@ -18,9 +18,8 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'client_files_dialog.dart';
 import '../models/client.dart';
-import '../services/google_docs_service.dart';
-import 'package:googleapis/drive/v3.dart' as drive;
-import 'google_docs_webview_screen.dart';
+import '../services/microsoft_word_service.dart';
+import 'word_webview_screen.dart';
 import 'package:legal_app/services/backup_aware_api.dart';
 import 'file_acknowledgement_screen.dart';
 import '../widgets/responsive.dart';
@@ -4711,7 +4710,7 @@ final dLink = "";
                       children: [
                         const Text('Connected Documents', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
                         IconButton(
-                          onPressed: () => _showGoogleDocsConnectDialog((_) {
+                          onPressed: () => _showMicrosoftWordConnectDialog((_) {
                             setStateDialog(() {});
                             setState(() {});
                           }),
@@ -4745,7 +4744,7 @@ final dLink = "";
                                 },
                               ),
                               onTap: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => GoogleDocsWebviewScreen(url: doc['url']!, title: doc['name']!)));
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => WordWebviewScreen(url: doc['url']!, title: doc['name']!)));
                               },
                             );
                           },
@@ -4769,7 +4768,7 @@ final dLink = "";
     );
   }
 
-  void _showGoogleDocsConnectDialog(StateSetter? parentSetState) {
+  void _showMicrosoftWordConnectDialog(StateSetter? parentSetState) {
     showDialog(
       context: context,
       builder: (context) {
@@ -4818,7 +4817,7 @@ final dLink = "";
                       // Show loading
                       showDialog(context: context, barrierDismissible: false, builder: (_) => const Center(child: CircularProgressIndicator()));
                       final docName = _nameController.text.trim().isNotEmpty ? '${_nameController.text.trim()} Doc' : 'New Work Doc';
-                      final url = await GoogleDocsService.createNewDocument(docName);
+                      final url = await MicrosoftWordService.createNewDocument(docName);
                       if (context.mounted) Navigator.pop(context); // hide loading
                       if (url != null) {
                         _connectedDocs.add({"name": docName, "url": url});
@@ -4954,8 +4953,8 @@ final dLink = "";
               const Text('Select Document', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
               const SizedBox(height: 16),
               Expanded(
-                child: FutureBuilder<List<drive.File>>(
-                  future: GoogleDocsService.getDriveFiles(),
+                child: FutureBuilder<List<dynamic>>(
+                  future: MicrosoftWordService.getDriveFiles(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
@@ -4975,10 +4974,10 @@ final dLink = "";
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
                           child: ListTile(
                             leading: const Icon(Icons.description, color: Colors.blueAccent),
-                            title: Text(doc.name ?? 'Untitled', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
-                            subtitle: Text('Modified: ${doc.modifiedTime?.toLocal().toString().split('.')[0] ?? ''}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                            title: Text(doc['name'] ?? 'Untitled', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+                            subtitle: Text('Modified: ${doc['lastModifiedDateTime'] != null ? DateTime.parse(doc['lastModifiedDateTime']).toLocal().toString().split('.')[0] : ''}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                             onTap: () async {
-                              _connectedDocs.add({"name": doc.name ?? 'Untitled', "url": doc.webViewLink ?? ''});
+                              _connectedDocs.add({"name": doc['name'] ?? 'Untitled', "url": doc['webUrl'] ?? ''});
                               _driveLinkController.text = jsonEncode(_connectedDocs);
                               Navigator.pop(context);
                               await _saveDeal();
@@ -5016,7 +5015,7 @@ final dLink = "";
               style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF475569)),
             ),
             IconButton(
-              onPressed: () => _showGoogleDocsConnectDialog((_) => setState(() {})),
+              onPressed: () => _showMicrosoftWordConnectDialog((_) => setState(() {})),
               icon: const Icon(Icons.add_circle_outline_rounded, color: AppTheme.primaryColor),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -5068,7 +5067,7 @@ final dLink = "";
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => GoogleDocsWebviewScreen(url: doc['url']!, title: doc['name']!),
+                        builder: (_) => WordWebviewScreen(url: doc['url']!, title: doc['name']!),
                       ),
                     );
                   },

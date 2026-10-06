@@ -81,8 +81,8 @@ class ExpenseModel {
         (e) => e.toString().split('.').last == json['type'],
         orElse: () => TransactionType.expense,
       ),
-      linkedCaseId: json['linked_case_id']?.toString(),
-      linkedClientName: json['linked_client_name']?.toString(),
+      linkedCaseId: json['linked_case_id']?.toString() ?? json['case_id']?.toString() ?? json['caseId']?.toString(),
+      linkedClientName: json['linked_client_name']?.toString() ?? json['client_name']?.toString(),
     );
   }
 

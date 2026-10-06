@@ -13,7 +13,8 @@ import '../widgets/responsive.dart';
 
 class TaskManagementScreen extends StatefulWidget {
   final String? initialStatus;
-  const TaskManagementScreen({super.key, this.initialStatus});
+  final String? linkedCaseId;
+  const TaskManagementScreen({super.key, this.initialStatus, this.linkedCaseId});
 
   @override
   State<TaskManagementScreen> createState() => _TaskManagementScreenState();
@@ -379,16 +380,22 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Ticker
   String _getStaffName(String? raw) {
     if (raw == null || raw.trim().isEmpty) return DisplayNameHelper.overrideName('Unassigned');
     String clean = raw.trim().replaceAll('[', '').replaceAll(']', '').replaceAll('"', '').replaceAll("'", '');
+    if (clean.contains(',')) {
+      return clean.split(',').map((e) => _getSingleStaffName(e)).join(', ');
+    }
+    return _getSingleStaffName(clean);
+  }
+
+  String _getSingleStaffName(String clean) {
+    clean = clean.trim();
     final cleanLower = clean.toLowerCase();
     if (_staffMap.containsKey(cleanLower)) return DisplayNameHelper.overrideName(_staffMap[cleanLower]!);
     if (cleanLower.contains('@')) {
-      final prefix = cleanLower.split('@')[0];
-      if (_staffMap.containsKey(prefix)) return DisplayNameHelper.overrideName(_staffMap[prefix]!);
-      final parts = prefix.split(RegExp(r'[._\-]'));
-      return parts.where((p) => p.isNotEmpty).map((p) => p[0].toUpperCase() + p.substring(1)).join(' ');
+      final p = cleanLower.split('@')[0];
+      return DisplayNameHelper.overrideName(p[0].toUpperCase() + p.substring(1));
     }
     final parts = clean.split(RegExp(r'[._\-]'));
-    return parts.where((p) => p.isNotEmpty).map((p) => p[0].toUpperCase() + p.substring(1)).join(' ');
+    return DisplayNameHelper.overrideName(parts.where((p) => p.isNotEmpty).map((p) => p[0].toUpperCase() + p.substring(1)).join(' '));
   }
 
   Future<void> _fetchTasks() async {
@@ -432,6 +439,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Ticker
 
   List<Task> _applyFilters(List<Task> rawTasks) {
     return rawTasks.where((t) {
+      if (widget.linkedCaseId != null && t.caseId != widget.linkedCaseId) return false;
       final q = _searchQuery.toLowerCase();
       final title = t.title.toLowerCase();
       final remark = (t.remark ?? '').toLowerCase();
@@ -489,12 +497,67 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Ticker
     }
   }
 
+  void _showAssigneePickerModal(List<String> currentSelected, void Function(List<String>) onApply) {
+    List<String> tempSelected = List.from(currentSelected);
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setPickerState) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Select Assignees', style: TextStyle(fontFamily: 'Montserrat', fontWeight: FontWeight.bold, fontSize: 16)),
+            content: SizedBox(
+              width: 300,
+              height: 400,
+              child: ListView(
+                children: _allUsers.map((u) {
+                  final email = u['email'] as String;
+                  final name = u['name'].toString();
+                  return CheckboxListTile(
+                    title: Text(name, style: const TextStyle(fontFamily: 'Montserrat', fontSize: 13.5)),
+                    value: tempSelected.contains(email),
+                    onChanged: (bool? checked) {
+                      setPickerState(() {
+                        if (checked == true) {
+                          tempSelected.add(email);
+                        } else {
+                          tempSelected.remove(email);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CANCEL', style: TextStyle(color: Color(0xFF64748B), fontFamily: 'Montserrat', fontWeight: FontWeight.bold)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  onApply(tempSelected);
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F172A),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('APPLY', style: TextStyle(color: Color(0xFFB8860B), fontFamily: 'Montserrat', fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _showTaskDialog([Task? task]) {
     final titleCtrl = TextEditingController(text: task?.title);
     final remarkCtrl = TextEditingController(text: task?.remark);
-    final caseIdCtrl = TextEditingController(text: task?.caseId);
+    final caseIdCtrl = TextEditingController(text: task?.caseId ?? widget.linkedCaseId);
     String priority = task?.priority ?? 'Medium';
-    String? assignedTo = task?.assignedTo;
+    List<String> assignedToList = task?.assignedTo?.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList() ?? [];
     DateTime? deadline = task?.deadline ?? DateTime.now().add(const Duration(days: 1));
 
     Widget buildStyledTextField(TextEditingController controller, String label, IconData icon, {int maxLines = 1}) {
@@ -671,15 +734,53 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Ticker
                       onChanged: (v) => setModalState(() => priority = v!),
                     ),
                     const SizedBox(height: 12),
-                    buildStyledDropdown<String>(
-                      value: assignedTo,
-                      label: 'Assignee (Staff Member)',
-                      icon: Icons.person_outline_rounded,
-                      items: _allUsers.map((u) => DropdownMenuItem<String>(
-                        value: u['email'] as String,
-                        child: Text(u['name'].toString()),
-                      )).toList(),
-                      onChanged: (v) => setModalState(() => assignedTo = v),
+                    InkWell(
+                      onTap: () {
+                        _showAssigneePickerModal(assignedToList, (newList) {
+                          setModalState(() {
+                            assignedToList = newList;
+                          });
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.group_add_rounded, color: Color(0xFF64748B), size: 18),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                assignedToList.isNotEmpty
+                                    ? 'Assigned: ${assignedToList.map((e) => _getStaffName(e)).join(', ')}'
+                                    : 'Select Assignees (Required)',
+                                style: TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 13,
+                                  fontWeight: assignedToList.isNotEmpty ? FontWeight.w600 : FontWeight.w500,
+                                  color: assignedToList.isNotEmpty ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (assignedToList.isNotEmpty)
+                              IconButton(
+                                icon: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF64748B)),
+                                onPressed: () {
+                                  setModalState(() {
+                                    assignedToList.clear();
+                                  });
+                                },
+                              )
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     InkWell(
@@ -733,10 +834,12 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Ticker
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
                           onPressed: () async {
-                            if (titleCtrl.text.isEmpty || assignedTo == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please provide task title and assignee')));
+                            if (titleCtrl.text.isEmpty || assignedToList.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please provide task title and select at least one assignee')));
                               return;
                             }
+                            
+                            final assignedTo = assignedToList.join(', ');
                             
                             if (task == null) {
                               final newTask = Task(

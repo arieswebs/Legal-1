@@ -8,7 +8,7 @@ import '../models/deal.dart';
 import '../models/deal_activity.dart';
 import '../services/deal_service.dart';
 import 'deal_detail_screen.dart';
-import 'google_docs_webview_screen.dart';
+import 'word_webview_screen.dart';
 import 'package:intl/intl.dart';
 import '../widgets/responsive.dart';
 
@@ -759,7 +759,7 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
               padding: const EdgeInsets.only(bottom: 6),
               child: InkWell(
                 onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => GoogleDocsWebviewScreen(url: doc['url']!, title: doc['name'] ?? 'Document')));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => WordWebviewScreen(url: doc['url']!, title: doc['name'] ?? 'Document')));
                 },
                 child: Row(
                   mainAxisSize: MainAxisSize.min,

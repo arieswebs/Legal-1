@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/client_service.dart';
@@ -1434,9 +1435,21 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
         }
 
         final clientCases = snapshot.data!.where((c) {
+          // Attempt to match by exact email first if available in case_description
+          if (c['case_description'] != null) {
+            try {
+              final map = jsonDecode(c['case_description']);
+              if (map['client_email'] != null && map['client_email'].toString().isNotEmpty) {
+                if (map['client_email'].toString().trim().toLowerCase() == (client.email ?? '').trim().toLowerCase()) {
+                  return true;
+                }
+              }
+            } catch (_) {}
+          }
+          
           final cName = (c['client_name'] ?? c['client'] ?? '').toString().trim().toLowerCase();
           final targetName = (client.name ?? '').trim().toLowerCase();
-          return cName.isNotEmpty && targetName.isNotEmpty && (cName == targetName || cName.contains(targetName) || targetName.contains(cName));
+          return cName.isNotEmpty && targetName.isNotEmpty && cName == targetName;
         }).toList();
         if (clientCases.isEmpty) {
           return const Center(

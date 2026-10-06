@@ -146,6 +146,7 @@ class _BillingScreenState extends State<BillingScreen> {
         statusFilter: _statusFilter,
         startDate: _startDate,
         endDate: _endDate,
+        caseIdFilter: widget.linkedCaseId,
       );
       
       if (mounted) {
@@ -494,7 +495,12 @@ class _BillingScreenState extends State<BillingScreen> {
   ));
 
   void _openCreator([Billing? b]) => Navigator.of(context).push(MaterialPageRoute(
-    builder: (_) => InvoiceCreatorPage(billing: b, onSaved: (dynamic id) { _fetchBillings(refresh: true); Navigator.pop(context); }),
+    builder: (_) => InvoiceCreatorPage(
+      billing: b, 
+      linkedCaseId: widget.linkedCaseId,
+      initialClientName: widget.initialClientName,
+      onSaved: (dynamic id) { _fetchBillings(refresh: true); Navigator.pop(context); }
+    ),
   ));
 
   @override

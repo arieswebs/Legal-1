@@ -78,8 +78,8 @@ class CaseService {
       final lowerName = clientName.toLowerCase();
       
       return allCases.where((c) {
-        final cName = (c['client_name'] ?? '').toString().toLowerCase();
-        return cName.contains(lowerName);
+        final cName = (c['client_name'] ?? '').toString().trim().toLowerCase();
+        return cName.isNotEmpty && cName == lowerName.trim();
       }).toList();
     } catch (e) {
       print('Error fetching cases for client: $e');

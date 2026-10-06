@@ -15,7 +15,6 @@ class DisplayNameHelper {
   /// Use this when the name stored in the Users table has a typo.
   static const Map<String, String> _nameOverrides = {
     'muhammed aslam pa': 'Mohammed Aslam PA',
-    'admin': 'Mohammed Aslam PA',
   };
 
   /// Convert an email like `muhammed.aslam.pa@domain.com` into a

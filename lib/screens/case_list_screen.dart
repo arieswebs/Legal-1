@@ -54,6 +54,46 @@ class _CaseListScreenState extends State<CaseListScreen> {
         }
       }
 
+      // Sort cases by Year descending, then by Workfile Number descending
+      Map<String, dynamic> parseDesc(dynamic desc) {
+        if (desc == null) return {};
+        if (desc is Map) return Map<String, dynamic>.from(desc);
+        if (desc is String) {
+          if (desc.isEmpty) return {};
+          try {
+            final decoded = jsonDecode(desc);
+            if (decoded is Map) return Map<String, dynamic>.from(decoded);
+          } catch (_) {}
+        }
+        return {};
+      }
+
+      for (var c in cases) {
+        final dataMap = parseDesc(c['case_description']);
+        String y = (c['year'] ?? c['case_year'] ?? '').toString();
+        String mapYear = (dataMap['year'] ?? dataMap['case_year'] ?? '').toString();
+        if (mapYear.isNotEmpty) y = mapYear;
+        c['_sort_year'] = int.tryParse(y) ?? 0;
+
+        String no = (dataMap['workfile_no'] ?? c['workfile_no'] ?? c['case_number'] ?? '').toString();
+        final match = RegExp(r'\d+').firstMatch(no);
+        c['_sort_num'] = match != null ? (int.tryParse(match.group(0)!) ?? 0) : 0;
+      }
+
+      cases.sort((a, b) {
+        final yearA = a['_sort_year'] as int? ?? 0;
+        final yearB = b['_sort_year'] as int? ?? 0;
+        if (yearA != yearB) return yearB.compareTo(yearA);
+
+        final numA = a['_sort_num'] as int? ?? 0;
+        final numB = b['_sort_num'] as int? ?? 0;
+        if (numA != numB) return numB.compareTo(numA);
+
+        final timeA = DateTime.tryParse((a['createdAt'] ?? a['created_at'] ?? '').toString()) ?? DateTime(2000);
+        final timeB = DateTime.tryParse((b['createdAt'] ?? b['created_at'] ?? '').toString()) ?? DateTime(2000);
+        return timeB.compareTo(timeA);
+      });
+
       if (mounted) {
         setState(() {
           _cases = cases;
@@ -295,13 +335,8 @@ class _CaseListScreenState extends State<CaseListScreen> {
                     ),
                   ),
 
-                  if (!isMobile) _buildCreateButton(),
-                ],
-              ),
-              if (isMobile) ...[
-                const SizedBox(height: 14),
-                _buildCreateButton(),
-              ],
+                  ],
+                ),
             ],
           );
         },
@@ -309,50 +344,6 @@ class _CaseListScreenState extends State<CaseListScreen> {
     );
   }
 
-  Widget _buildCreateButton() {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const CaseManagementScreen()),
-          ).then((_) => _fetchCases());
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFD4AF37).withValues(alpha: 0.5), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withValues(alpha: 0.2),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.add_rounded, color: Color(0xFFD4AF37), size: 20),
-              SizedBox(width: 8),
-              Text(
-                'REGISTER NEW CASE',
-                style: TextStyle(
-                  fontFamily: 'Montserrat',
-                  color: Colors.white,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   // ─── 2. Executive Analytics Metric Cards Grid ───
   Widget _buildAnalyticsGrid() {
@@ -705,15 +696,21 @@ class _CaseListScreenState extends State<CaseListScreen> {
       }
     }
 
-    // Format Handler / Staff (Display clean staff name, not email ID or raw list)
+    // Format Handler / Staff (Care Of)
     final rawHandler = caseData['assigned_counsel'] ??
-        caseData['responsible_staff'] ??
         caseData['created_by'] ??
         caseData['assignee_email'] ??
         caseData['lawyer_name'] ??
         'Unassigned';
 
     final String handlerDisplay = _formatHandlerName(rawHandler);
+
+    // Format Handling Lawyer
+    final rawHandling = caseData['handling_lawyer'] ??
+        caseData['handling_staff'] ??
+        caseData['responsible_staff'] ??
+        '';
+    final String handlingDisplay = _formatHandlerName(rawHandling);
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -828,7 +825,25 @@ class _CaseListScreenState extends State<CaseListScreen> {
               const Divider(height: 1, color: Color(0xFFF1F5F9)),
               const SizedBox(height: 10),
 
-              // Basic Details Rows (Handling, Created Date)
+              // Basic Details Rows (Handling, Care Of, Created Date)
+              if (handlingDisplay.isNotEmpty && handlingDisplay != 'Unassigned') ...[
+                Row(
+                  children: [
+                    const Icon(Icons.gavel_rounded, size: 13, color: Color(0xFF0F172A)),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Handled By: $handlingDisplay',
+                      style: const TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+              ],
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1081,14 +1096,14 @@ class _CaseListScreenState extends State<CaseListScreen> {
           children: [
             const Icon(Icons.folder_open_rounded, size: 64, color: Color(0xFF94A3B8)),
             const SizedBox(height: 16),
-            Text(
-              'No Cases Registered Yet',
-              style: GoogleFonts.cormorantGaramond(fontSize: 24, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
-            ),
-            const SizedBox(height: 8),
             const Text(
-              'Click "REGISTER NEW CASE" to open a new entry.',
-              style: TextStyle(fontFamily: 'Montserrat', color: Color(0xFF64748B)),
+              'No active cases found for this criteria.',
+              style: TextStyle(fontFamily: 'Montserrat', color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Create a new Workfile to register a case.',
+              style: TextStyle(fontFamily: 'Montserrat', color: Color(0xFF64748B), fontSize: 12),
             ),
           ],
         ),

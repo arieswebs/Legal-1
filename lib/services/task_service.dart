@@ -147,7 +147,8 @@ class TaskService {
              assignedTo == staffName ||
              assignedTo == emailLower ||
              staffName.contains(assignedTo) ||
-             assignedTo.contains(staffName);
+             assignedTo.contains(staffName) ||
+             assignedTo.contains(emailLower);
     }).toList();
   }
 

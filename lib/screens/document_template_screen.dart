@@ -7,8 +7,8 @@ import '../models/case_model.dart';
 import '../services/document_automation_service.dart';
 import '../services/client_service.dart';
 import '../services/case_service.dart';
-import '../services/google_docs_service.dart';
-import 'google_docs_webview_screen.dart';
+import '../services/microsoft_word_service.dart';
+import 'word_webview_screen.dart';
 import '../widgets/responsive.dart';
 
 class DocumentTemplateScreen extends StatefulWidget {
@@ -73,7 +73,7 @@ class _DocumentTemplateScreenState extends State<DocumentTemplateScreen> {
       caseFile: _selectedCase,
     );
 
-    final urlString = await GoogleDocsService.createNewDocument(
+    final urlString = await MicrosoftWordService.createNewDocument(
       template.title,
       content: generatedContent,
     );
@@ -84,7 +84,7 @@ class _DocumentTemplateScreenState extends State<DocumentTemplateScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => GoogleDocsWebviewScreen(
+            builder: (_) => WordWebviewScreen(
               url: urlString,
               title: template.title,
             ),
@@ -92,7 +92,7 @@ class _DocumentTemplateScreenState extends State<DocumentTemplateScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to generate Google Doc.')),
+          const SnackBar(content: Text('Failed to generate Word Document.')),
         );
       }
     }

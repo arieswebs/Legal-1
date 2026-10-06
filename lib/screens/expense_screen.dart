@@ -12,7 +12,8 @@ import '../services/expense_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 class ExpenseScreen extends StatefulWidget {
-  const ExpenseScreen({super.key});
+  final String? initialCaseId;
+  const ExpenseScreen({super.key, this.initialCaseId});
 
   @override
   State<ExpenseScreen> createState() => _ExpenseScreenState();
@@ -89,7 +90,10 @@ class _ExpenseScreenState extends State<ExpenseScreen> with SingleTickerProvider
 
   Future<void> _fetchTransactions() async {
     setState(() => _isLoading = true);
-    final data = await ExpenseService.getExpenses();
+    var data = await ExpenseService.getExpenses();
+    if (widget.initialCaseId != null && widget.initialCaseId!.trim().isNotEmpty) {
+      data = data.where((e) => e.linkedCaseId == widget.initialCaseId).toList();
+    }
     final cases = await CaseService.getCases();
     
     final Map<String, String> caseMap = {};
@@ -126,6 +130,8 @@ class _ExpenseScreenState extends State<ExpenseScreen> with SingleTickerProvider
       builder: (context) => AddTransactionDialog(
         currentUserName: _currentUserName,
         onAdded: _fetchTransactions,
+        initialCaseId: widget.initialCaseId,
+        lockCaseSelection: widget.initialCaseId != null,
       ),
     );
   }

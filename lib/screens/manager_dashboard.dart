@@ -114,6 +114,8 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
       final attendances = await AttendanceService.getAllStatuses();
 
 
+      final cases = await CaseService.getCases();
+
       final List<Map<String, dynamic>> updatedRoster = [];
       for (var u in users) {
         final userEmail = u['email'].toString();
@@ -143,13 +145,42 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
         setState(() {
           _staffRoster = updatedRoster;
 
-          _meetingsToday = meetings.map((m) => {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final tomorrow = today.add(const Duration(days: 1));
+
+          final List<Map<String, dynamic>> allMeetings = [];
+          
+          allMeetings.addAll(meetings.map((m) => {
             'date': m['meeting_date'].toString(),
             'time': m['meeting_time'].toString(),
             'title': m['title'].toString(),
             'location': m['type'].toString(),
             'attendees': m['attendees'].toString(),
-          }).toList();
+          }));
+
+          for (var c in cases) {
+            final rawHearing = c['next_hearing_date'] ?? c['next_hearing'] ?? c['hearingDate'] ?? c['hearing_date'];
+            if (rawHearing != null && rawHearing.toString().trim().isNotEmpty && rawHearing.toString() != 'null' && rawHearing.toString() != 'N/A') {
+              final parsed = DateTime.tryParse(rawHearing.toString());
+              if (parsed != null) {
+                final hearingDate = DateTime(parsed.year, parsed.month, parsed.day);
+                String dateStr = rawHearing.toString().split('T')[0];
+                if (hearingDate == today) dateStr = 'Today';
+                else if (hearingDate == tomorrow) dateStr = 'Tomorrow';
+                
+                allMeetings.add({
+                  'date': dateStr,
+                  'time': c['hearing_time']?.toString() ?? c['time']?.toString() ?? '10:30 AM',
+                  'title': 'Hearing: ${c['case_title'] ?? c['title'] ?? c['case_number'] ?? 'Case'}',
+                  'location': c['court_details']?.toString() ?? c['court']?.toString() ?? 'Court',
+                  'attendees': c['handling_lawyer']?.toString() ?? c['assigned_counsel']?.toString() ?? 'Unassigned',
+                });
+              }
+            }
+          }
+
+          _meetingsToday = allMeetings;
 
           _recentDocuments = docs.map((d) => {
             'title': d.title,

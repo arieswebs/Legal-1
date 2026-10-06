@@ -359,12 +359,40 @@ class _StaffDashboardState extends State<StaffDashboard> with WidgetsBindingObse
             'notes': c['notes']?.toString() ?? '',
           }).toList();
 
-          _meetingsToday = meetings.map((m) => {
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final tomorrow = today.add(const Duration(days: 1));
+
+          final List<Map<String, dynamic>> allMeetings = [];
+          
+          allMeetings.addAll(meetings.map((m) => {
             'date': m['meeting_date'].toString(),
             'time': m['meeting_time'].toString(),
             'title': m['title'].toString(),
             'location': m['type'].toString(),
-          }).toList();
+          }));
+
+          for (var c in cases) {
+            final rawHearing = c['next_hearing_date'] ?? c['next_hearing'] ?? c['hearingDate'] ?? c['hearing_date'];
+            if (rawHearing != null && rawHearing.toString().trim().isNotEmpty && rawHearing.toString() != 'null' && rawHearing.toString() != 'N/A') {
+              final parsed = DateTime.tryParse(rawHearing.toString());
+              if (parsed != null) {
+                final hearingDate = DateTime(parsed.year, parsed.month, parsed.day);
+                String dateStr = rawHearing.toString().split('T')[0];
+                if (hearingDate == today) dateStr = 'Today';
+                else if (hearingDate == tomorrow) dateStr = 'Tomorrow';
+                
+                allMeetings.add({
+                  'date': dateStr,
+                  'time': c['hearing_time']?.toString() ?? c['time']?.toString() ?? '10:30 AM',
+                  'title': 'Hearing: ${c['case_title'] ?? c['title'] ?? c['case_number'] ?? 'Case'}',
+                  'location': c['court_details']?.toString() ?? c['court']?.toString() ?? 'Court',
+                });
+              }
+            }
+          }
+
+          _meetingsToday = allMeetings;
         });
       }
       
